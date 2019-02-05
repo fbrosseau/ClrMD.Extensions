@@ -154,7 +154,16 @@ namespace ClrMD.Extensions.Core
 
         public static bool IsSimpleValue(ClrType type)
         {
-            return type.IsPrimitive || s_simpleValueHandlers.ContainsKey(type.Name);
+            if (type.IsPrimitive || s_simpleValueHandlers.ContainsKey(type.Name))
+                return true;
+
+            if (type.Name.StartsWith("System.Nullable<"))
+            {
+                var elementType = type.GetFieldByName("value").Type;
+                return IsSimpleValue(elementType);
+            }
+
+            return false;
         }
 
         public static object GetSimpleValue(ClrDynamic obj)
@@ -172,11 +181,18 @@ namespace ClrMD.Extensions.Core
                 return type.GetValue(obj.Address);
             }
 
-            if (!s_simpleValueHandlers.TryGetValue(obj.TypeName, out var handler))
-                return false;
+            if (s_simpleValueHandlers.TryGetValue(obj.TypeName, out var handler))
+            {
+                ulong address = obj.IsInterior ? obj.Address : obj.Address + (ulong)heap.PointerSize;
+                return handler.GetSimpleValue(obj, address);
+            }
 
-            ulong address = obj.IsInterior ? obj.Address : obj.Address + (ulong) heap.PointerSize;
-            return handler.GetSimpleValue(obj, address);
+            if (type.Name.StartsWith("System.Nullable<"))
+            {
+                return !obj["hasValue"] ? null : obj["value"].SimpleValue;
+            }
+
+            throw new InvalidOperationException(string.Format("SimpleValue not available for type '{0}'", type.Name));
         }
 
         public static string GetSimpleValueString(ClrDynamic obj)

@@ -523,11 +523,23 @@ namespace ClrMD.Extensions
 
         private static object ConvertValue(object simpleValue, Type targetType)
         {
-            if (!targetType.IsEnum)
-                return Convert.ChangeType(simpleValue, targetType);
+            if (targetType.IsEnum)
+            {
+                simpleValue = Convert.ChangeType(simpleValue, Enum.GetUnderlyingType(targetType));
+                return Enum.ToObject(targetType, simpleValue);
+            }
 
-            simpleValue = Convert.ChangeType(simpleValue, Enum.GetUnderlyingType(targetType));
-            return Enum.ToObject(targetType, simpleValue);
+            if (targetType.IsConstructedGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                if (value is null)
+                    return null;
+
+                var targetValueType = targetType.GetGenericArguments()[0];
+                value = Convert.ChangeType(value, targetValueType);
+                return Activator.CreateInstance(targetType, value);
+            }
+
+            return Convert.ChangeType(simpleValue, targetType);
         }
 
         #endregion
