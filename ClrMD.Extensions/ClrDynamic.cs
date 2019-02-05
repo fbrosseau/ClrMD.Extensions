@@ -525,12 +525,24 @@ namespace ClrMD.Extensions
 
         public override bool TryConvert(ConvertBinder binder, out object result)
         {
-            result = null;
-            if (!HasSimpleValue)
-                return base.TryConvert(binder, out result);
-
-            result = Convert.ChangeType(SimpleValue, binder.ReturnType);
+            result = ConvertContent(binder.ReturnType);
             return true;
+        }
+
+        public object ConvertContent(Type targetType)
+        {
+            var value = SimpleValue;
+            if (targetType.IsConstructedGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                if (value is null)
+                    return null;
+                
+                var targetValueType = targetType.GetGenericArguments()[0];
+                value = Convert.ChangeType(value, targetValueType);
+                return Activator.CreateInstance(targetType, value);
+            }
+
+            return Convert.ChangeType(SimpleValue, targetType);
         }
 
         #endregion
@@ -659,6 +671,12 @@ namespace ClrMD.Extensions
                         return true;
                 }
 
+                if (type.Name.StartsWith("System.Nullable<"))
+                {
+                    var valueType = type.GetFieldByName("value").Type;
+                    return IsSimpleValue(valueType);
+                }
+
                 return false;
             }
 
@@ -678,29 +696,37 @@ namespace ClrMD.Extensions
                 switch (type.Name)
                 {
                     case GuidTypeName:
-                        {
-                            byte[] buffer = ReadBuffer(heap, address, 16);
-                            return new Guid(buffer);
-                        }
+                    {
+                        byte[] buffer = ReadBuffer(heap, address, 16);
+                        return new Guid(buffer);
+                    }
 
                     case TimeSpanTypeName:
-                        {
-                            byte[] buffer = ReadBuffer(heap, address, 8);
-                            long ticks = BitConverter.ToInt64(buffer, 0);
-                            return new TimeSpan(ticks);
-                        }
+                    {
+                        byte[] buffer = ReadBuffer(heap, address, 8);
+                        long ticks = BitConverter.ToInt64(buffer, 0);
+                        return new TimeSpan(ticks);
+                    }
 
                     case DateTimeTypeName:
-                        {
-                            byte[] buffer = ReadBuffer(heap, address, 8);
-                            ulong dateData = BitConverter.ToUInt64(buffer, 0);
-                            return GetDateTime(dateData);
-                        }
+                    {
+                        byte[] buffer = ReadBuffer(heap, address, 8);
+                        ulong dateData = BitConverter.ToUInt64(buffer, 0);
+                        return GetDateTime(dateData);
+                    }
 
                     case IPAddressTypeName:
-                        {
-                            return GetIPAddress(obj);
-                        }
+                    {
+                        return GetIPAddress(obj);
+                    }
+                }
+
+                if (type.Name.StartsWith("System.Nullable<"))
+                {
+                    if (!obj["hasValue"])
+                        return null;
+
+                    return obj["value"].SimpleValue;
                 }
 
                 throw new InvalidOperationException(string.Format("SimpleValue not available for type '{0}'", type.Name));
