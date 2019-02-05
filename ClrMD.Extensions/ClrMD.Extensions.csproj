@@ -9,7 +9,7 @@
     <Title>ClrMD.Extensions (LINQ to Memory Dump)</Title>
     <Description>Provides multiple ClrMD enhancements including LINQPad integration.</Description>
     <PackageTags>clrmd</PackageTags>
-    <Version>1.0.0</Version>
+    <Version>1.0.5</Version>
     <Authors>Jeff Cyr</Authors>
     <Copyright>© Jeff Cyr</Copyright>
     <PackageLicenseUrl>https://github.com/JeffCyr/ClrMD.Extensions/blob/master/LICENSE</PackageLicenseUrl>

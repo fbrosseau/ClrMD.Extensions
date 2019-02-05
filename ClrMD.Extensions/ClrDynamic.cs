@@ -297,7 +297,7 @@ namespace ClrMD.Extensions
             int i = 0;
             foreach (var val in items)
             {
-                array.SetValue(val.ConvertContent(elemType), i++);
+                array.SetValue(val.ToType(elemType), i++);
             }
 
             return array;
@@ -499,11 +499,16 @@ namespace ClrMD.Extensions
 
         public override bool TryConvert(ConvertBinder binder, out object result)
         {
-            result = ConvertContent(binder.ReturnType);
+            result = ToType(binder.ReturnType);
             return true;
         }
 
-        public object ConvertContent(Type targetType)
+        public object ToType(Type targetType)
+        {
+            return ToType(targetType, null);
+        }
+
+        public object ToType(Type targetType, IFormatProvider provider)
         {
             if (!HasSimpleValue)
             {
@@ -645,12 +650,6 @@ namespace ClrMD.Extensions
         ushort IConvertible.ToUInt16(IFormatProvider provider) => (ushort)this;
         uint IConvertible.ToUInt32(IFormatProvider provider) => (uint)this;
         ulong IConvertible.ToUInt64(IFormatProvider provider) => (ulong)this;
-
-        public object ToType(Type conversionType, IFormatProvider provider)
-        {
-            return Convert.ChangeType(SimpleValue, conversionType, provider);
-        }
-
 
         #endregion
 

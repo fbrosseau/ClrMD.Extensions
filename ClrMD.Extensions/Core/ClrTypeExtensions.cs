@@ -14,46 +14,69 @@ namespace ClrMD.Extensions.Core
         {
             s_dumpToClrTypes = new Dictionary<string, Type>();
 
-            void AddType(Type t)
+            var basicTypes = new[]
+            {
+                typeof(object),
+                typeof(string),
+                typeof(void),
+                typeof(byte),
+                typeof(sbyte),
+                typeof(short),
+                typeof(ushort),
+                typeof(int),
+                typeof(uint),
+                typeof(long),
+                typeof(ulong),
+                typeof(float),
+                typeof(double),
+                typeof(decimal),
+                typeof(Guid),
+                typeof(DateTime),
+                typeof(TimeSpan),
+                typeof(IPAddress),
+                typeof(IPEndPoint),
+                typeof(DnsEndPoint),
+                typeof(X509Certificate),
+                typeof(X509Certificate2)
+            };
+
+            foreach (var t in basicTypes)
             {
                 s_dumpToClrTypes.Add(t.FullName, t);
             }
-
-            AddType(typeof(object));
-            AddType(typeof(string));
-            AddType(typeof(void));
-            AddType(typeof(byte));
-            AddType(typeof(sbyte));
-            AddType(typeof(short));
-            AddType(typeof(ushort));
-            AddType(typeof(int));
-            AddType(typeof(uint));
-            AddType(typeof(long));
-            AddType(typeof(ulong));
-            AddType(typeof(float));
-            AddType(typeof(double));
-            AddType(typeof(decimal));
-            AddType(typeof(Guid));
-            AddType(typeof(DateTime));
-            AddType(typeof(TimeSpan));
-            AddType(typeof(IPAddress));
-            AddType(typeof(IPEndPoint));
-            AddType(typeof(DnsEndPoint));
-            AddType(typeof(X509Certificate));
-            AddType(typeof(X509Certificate2));
         }
 
         public static Type GetRealType(this ClrType type)
         {
-            if (s_dumpToClrTypes.TryGetValue(type.Name, out var t))
-                return t;
+            Type t;
+            lock (s_dumpToClrTypes)
+            {
+                if (s_dumpToClrTypes.TryGetValue(type.Name, out t))
+                    return t;
+            }
 
-            throw new ArgumentException("Only basic types can be matched to the concrete runtime types");
+            try
+            {
+                t = Type.GetType(type.Name);
+            }
+            catch
+            {
+                t = null;
+            }
+
+            lock (s_dumpToClrTypes)
+            {
+                s_dumpToClrTypes[type.Name] = t;
+            }
+
+            return t;
         }
 
         public static TypeCode GetTypeCode(this ClrType type)
         {
-            return s_dumpToClrTypes.TryGetValue(type.Name, out var t)
+            var t = GetRealType(type);
+
+            return t != null
                 ? Type.GetTypeCode(t)
                 : TypeCode.Object;
         }
